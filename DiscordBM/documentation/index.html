@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nothing here yet</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="barBg"></div>
+<div class="top-bar" id="topBar">
+    <span class="name" id="name">DiscordBM</span>
+    <button class="theme-toggle" id="themeToggle">🌙</button>
+</div>
+<div class="message" id="message">Nothing here yet</div>
+<div class="filler"></div>
+
+<script type="module">
+    import { ThemeManager } from './js/themeManager.js';
+    import { ScrollManager } from './js/scrollManager.js';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const themeToggle = document.getElementById('themeToggle');
+        const themeManager = new ThemeManager(themeToggle);
+
+        const topBar = document.getElementById('topBar');
+        const barBg = document.getElementById('barBg');
+        const name = document.getElementById('name');
+        const message = document.getElementById('message');
+        const scrollManager = new ScrollManager(topBar, barBg, name, message);
+    });
+</script>
+</body>
+</html>
