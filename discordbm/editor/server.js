@@ -1,0 +1,32 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const app = express();
+const sessions = new Map();
+
+app.use(bodyParser.json());
+app.use(express.static('public'));
+
+// API Endpoints
+app.post('/api/session/create', (req, res) => {
+    const { code, data } = req.body;
+    sessions.set(code, {
+        data: req.body.data,
+        created: Date.now()
+    });
+    res.sendStatus(200);
+});
+
+app.get('/api/session/:code', (req, res) => {
+    const session = sessions.get(req.params.code);
+    if(!session) return res.sendStatus(404);
+    res.json(session.data);
+});
+
+// Editor Interface
+app.get('/editor/:code', (req, res) => {
+    res.sendFile(__dirname + '/public/editor.html');
+});
+
+app.listen(3000, () => {
+    console.log('Server running on port 3000');
+});

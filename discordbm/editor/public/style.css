@@ -1,0 +1,73 @@
+:root {
+    --dark-bg: #2b2d31;
+    --darker-bg: #1e1f22;
+    --accent: #5865f2;
+    --text: #dbdee1;
+}
+
+body {
+    margin: 0;
+    background: var(--dark-bg);
+    color: var(--text);
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 300px;
+    background: var(--darker-bg);
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.editor {
+    flex: 1;
+    padding: 20px;
+}
+
+.command-tree {
+    list-style: none;
+    padding: 0;
+}
+
+.command-node {
+    padding: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.command-node:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.property-group {
+    margin-bottom: 20px;
+}
+
+.property-label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.property-input {
+    width: 100%;
+    padding: 8px;
+    background: var(--darker-bg);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    border-radius: 4px;
+}
+
+.save-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    float: right;
+}
