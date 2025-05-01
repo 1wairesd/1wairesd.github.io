@@ -4,14 +4,13 @@ export class ScrollManager {
         this.barBg = barBg;
         this.nickname = nickname;
         this.message = message;
-        this.overscroll = 60;
+        this.overscroll = 0;
         this.maxOverscroll = 60;
 
         window.addEventListener('wheel', this.handleWheel.bind(this), { passive: false });
         window.addEventListener('scroll', this.handleScroll.bind(this));
         this.updateVisuals();
     }
-
 
     handleWheel(e) {
         if (window.scrollY === 0 && e.deltaY < 0) {
