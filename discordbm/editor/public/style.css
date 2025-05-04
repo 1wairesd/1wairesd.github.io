@@ -161,3 +161,46 @@ body {
 .btn.small i {
     margin-right: 4px;
 }
+
+.editor-header {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.session-code {
+    background: var(--darker-bg);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.property-group {
+    background: var(--darker-bg);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.property-group h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1em;
+    color: var(--text);
+}
+
+.option-card {
+    background: rgba(79, 84, 92, 0.16);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.option-remove {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+}

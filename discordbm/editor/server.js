@@ -55,9 +55,9 @@ setInterval(() => {
   }
 }, 60000);
 
-app.use((req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
-});
+//app.use((req, res) => {
+//  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+//});
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);

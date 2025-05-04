@@ -67,15 +67,19 @@ function renderProperties(command) {
 
     let input;
     if (cfg.type === 'textarea') {
-      input = document.createElement('textarea'); input.rows = 3;
+      input = document.createElement('textarea');
+      input.rows = 3;
     } else if (cfg.type === 'select') {
       input = document.createElement('select');
       cfg.options.forEach(opt => {
-        const optEl = document.createElement('option'); optEl.value = opt; optEl.textContent = opt;
+        const optEl = document.createElement('option');
+        optEl.value = opt;
+        optEl.textContent = opt;
         input.appendChild(optEl);
       });
     } else {
-      input = document.createElement('input'); input.type = cfg.type;
+      input = document.createElement('input');
+      input.type = cfg.type;
     }
     input.className = 'property-input';
     if (cfg.type === 'checkbox') input.checked = !!command[key];
@@ -112,12 +116,61 @@ function renderProperties(command) {
       <input type="text" class="property-input" placeholder="Name" value="${opt.name}" onchange="updateOption('name', ${idx}, this.value)">
       <select class="property-input" onchange="updateOption('type', ${idx}, this.value)">
         ${['STRING','INTEGER','BOOLEAN','USER','CHANNEL']
-          .map(t => `<option value="${t}"${opt.type===t?' selected':''}>${t}</option>`) .join('')}
+          .map(t => `<option value="${t}"${opt.type===t?' selected':''}>${t}</option>`).join('')}
       </select>
       <textarea class="property-input" placeholder="Description" onchange="updateOption('description', ${idx}, this.value)">${opt.description||''}</textarea>
       <label class="checkbox"><input type="checkbox"${opt.required?' checked':''} onchange="updateOption('required', ${idx}, this.checked)"> Required</label>
     `;
     editor.appendChild(optDiv);
+  });
+
+  const conditionsGroup = document.createElement('div');
+  conditionsGroup.className = 'property-group';
+  conditionsGroup.innerHTML = `
+    <h3>Conditions
+      <button onclick="addNewCondition()" class="btn small">
+        <i class="fas fa-plus"></i>
+      </button>
+    </h3>`;
+  editor.appendChild(conditionsGroup);
+
+  (command.conditions || []).forEach((cond, idx) => {
+    const condDiv = document.createElement('div');
+    condDiv.className = 'property-group';
+    condDiv.innerHTML = `
+      <label>Condition ${idx + 1}</label>
+      <select class="property-input" onchange="updateCondition('type', ${idx}, this.value)">
+        ${['permission','role','time']
+          .map(t => `<option value="${t}"${cond.type===t?' selected':''}>${t}</option>`).join('')}
+      </select>
+      <input type="text" class="property-input" placeholder="Value" value="${cond.role_id||cond.value||''}" onchange="updateCondition('value', ${idx}, this.value)">
+    `;
+    editor.appendChild(condDiv);
+  });
+
+  const actionsGroup = document.createElement('div');
+  actionsGroup.className = 'property-group';
+  actionsGroup.innerHTML = `
+    <h3>Actions
+      <button onclick="addNewAction()" class="btn small">
+        <i class="fas fa-plus"></i>
+      </button>
+    </h3>
+    <div class="actions-list"></div>`;
+  editor.appendChild(actionsGroup);
+
+  const actionsList = editor.querySelector('.actions-list');
+  (command.actions || []).forEach((act, idx) => {
+    const actionCard = document.createElement('div');
+    actionCard.className = 'action-card';
+    actionCard.innerHTML = `
+      <select class="action-type" onchange="updateAction('type', ${idx}, this.value)">
+        <option value="send_message"${act.type==='send_message'?' selected':''}>Send Message</option>
+        <option value="button"${act.type==='button'?' selected':''}>Button</option>
+      </select>
+      <input type="text" placeholder="Content" value="${act.message||act.content||''}" onchange="updateAction('message', ${idx}, this.value)">
+    `;
+    actionsList.appendChild(actionCard);
   });
 }
 
@@ -140,6 +193,40 @@ function updateOption(field, index, value) {
   renderCommandTree({ commands: currentData.commands });
 }
 
+function addNewCondition() {
+  if (!selectedCommand) return;
+  selectedCommand.conditions = selectedCommand.conditions||[];
+  selectedCommand.conditions.push({ type: 'permission', role_id: '' });
+  renderProperties(selectedCommand);
+}
+
+function updateCondition(field, index, value) {
+  if (!selectedCommand?.conditions) return;
+  if (field === 'value') {
+    selectedCommand.conditions[index].role_id = value;
+  } else {
+    selectedCommand.conditions[index].type = value;
+  }
+  renderCommandTree({ commands: currentData.commands });
+}
+
+function addNewAction() {
+  if (!selectedCommand) return;
+  selectedCommand.actions = selectedCommand.actions||[];
+  selectedCommand.actions.push({ type: 'send_message', message: 'New message' });
+  renderProperties(selectedCommand);
+}
+
+function updateAction(field, index, value) {
+  if (!selectedCommand?.actions) return;
+  if (field === 'type') {
+    selectedCommand.actions[index].type = value;
+  } else {
+    selectedCommand.actions[index].message = value;
+  }
+  renderCommandTree({ commands: currentData.commands });
+}
+
 function createNewCommand() {
   currentData.commands.push({ name: 'new_command', description: '', context: 'both', ephemeral: false, options: [], conditions: [], actions: [] });
   renderCommandTree(currentData);
@@ -148,7 +235,7 @@ function createNewCommand() {
 function deleteCommand() {
   if (selectedCommand && confirm('Delete this command?')) {
     const i = currentData.commands.indexOf(selectedCommand);
-    if (i>=0) currentData.commands.splice(i,1);
+    if (i >= 0) currentData.commands.splice(i,1);
     selectedCommand = null;
     document.getElementById('deleteBtn').disabled = true;
     document.getElementById('propertyEditor').innerHTML = '';
@@ -158,7 +245,11 @@ function deleteCommand() {
 
 async function saveChanges() {
   try {
-    const resp = await fetch(`/api/session/${currentCode}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(currentData) });
+    const resp = await fetch(`/api/session/${currentCode}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentData)
+    });
     if (resp.ok) {
       prompt('Changes saved! Run this command in-game:', `/discordbmv applyedits ${currentCode}`);
     } else alert('Error saving changes');
