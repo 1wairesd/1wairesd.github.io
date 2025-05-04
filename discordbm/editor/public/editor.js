@@ -12,7 +12,7 @@ async function loadSessionData() {
         const response = await fetch(`/api/session/${currentCode}`);
         currentData = await response.json();
         renderCommandTree(currentData);
-    } catch (error) {
+    } catch {
         alert('Error loading session');
     }
 }
@@ -25,10 +25,7 @@ function renderCommandTree(data) {
         const div = document.createElement('div');
         div.className = `command-node ${selectedCommand === command ? 'active' : ''}`;
         div.style.paddingLeft = depth * 20 + 'px';
-        div.innerHTML = `
-            <i class="fas fa-${command.children ? 'folder' : 'code'}"></i>
-            ${command.name}
-        `;
+        div.innerHTML = `<i class="fas fa-${command.children ? 'folder' : 'code'}"></i>${command.name}`;
 
         div.onclick = (e) => {
             e.stopPropagation();
@@ -44,6 +41,7 @@ function renderCommandTree(data) {
         if (command.children) {
             command.children.forEach(child =>
                 div.appendChild(createNode(child, depth + 1))
+            );
         }
 
         return div;
@@ -78,7 +76,7 @@ function renderProperties(command) {
         label.textContent = config.label;
 
         let input;
-        switch(config.type) {
+        switch (config.type) {
             case 'textarea':
                 input = document.createElement('textarea');
                 input.className = 'property-input';
@@ -101,25 +99,58 @@ function renderProperties(command) {
                 break;
             default:
                 input = document.createElement('input');
-                input.className = 'property-input';
                 input.type = config.type;
+                input.className = 'property-input';
         }
 
-        input.value = command[key] || '';
         if (config.type === 'checkbox') {
             input.checked = !!command[key];
+        } else {
+            input.value = command[key] || '';
         }
 
         input.addEventListener('change', (e) => {
-            command[key] = config.type === 'checkbox' ?
-                e.target.checked :
-                e.target.value;
+            command[key] = config.type === 'checkbox' ? e.target.checked : e.target.value;
         });
 
         group.appendChild(label);
         group.appendChild(input);
         editor.appendChild(group);
     });
+
+    const optionsGroup = document.createElement('div');
+    optionsGroup.className = 'property-group';
+    optionsGroup.innerHTML = `<h3>Command Options</h3>`;
+    editor.appendChild(optionsGroup);
+
+    command.options.forEach((option, index) => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'property-group';
+        optionDiv.innerHTML = `
+            <label>Option ${index + 1}</label>
+            <input
+                type="text"
+                value="${option.name}"
+                class="property-input"
+                onchange="updateOption('name', ${index}, this.value)"
+            >
+            <select
+                class="property-input"
+                onchange="updateOption('type', ${index}, this.value)"
+            >
+                ${['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL']
+                  .map(t => `<option value="${t}" ${option.type === t ? 'selected' : ''}>${t}</option>`)
+                  .join('')}
+            </select>
+        `;
+        editor.appendChild(optionDiv);
+    });
+}
+
+function updateOption(field, index, value) {
+    if (!selectedCommand.options) return;
+    selectedCommand.options[index][field] = value;
+    renderCommandTree({ commands: currentData.commands });
 }
 
 function createNewCommand() {
@@ -132,7 +163,6 @@ function createNewCommand() {
         conditions: [],
         actions: []
     };
-
     currentData.commands.push(newCommand);
     renderCommandTree(currentData);
 }
@@ -155,14 +185,13 @@ async function saveChanges() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(currentData)
         });
-
         if (response.ok) {
             const command = `/discordbmv applyedits ${currentCode}`;
             prompt('Changes saved! Run this command in-game to apply:', command);
         } else {
             alert('Error saving changes');
         }
-    } catch (error) {
+    } catch {
         alert('Error saving changes');
     }
 }

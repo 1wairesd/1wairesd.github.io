@@ -13,7 +13,6 @@ app.use((req, res, next) => {
 });
 
 app.use(bodyParser.json());
-
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
@@ -22,14 +21,16 @@ app.get('/', (req, res) => {
 
 app.post('/api/session/create', (req, res) => {
   const { code, data } = req.body;
-  sessions.set(code, { data, created: Date.now() });
+  sessions.set(code, {
+    data: { commands: data },
+    created: Date.now()
+  });
   res.sendStatus(200);
 });
 
 app.put('/api/session/:code', (req, res) => {
   const session = sessions.get(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-
   session.data = req.body;
   session.created = Date.now();
   res.sendStatus(200);
@@ -38,7 +39,6 @@ app.put('/api/session/:code', (req, res) => {
 app.get('/api/session/:code', (req, res) => {
   const session = sessions.get(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-  res.set('Content-Type', 'application/json');
   res.json(session.data);
 });
 
@@ -46,7 +46,7 @@ app.get('/editor/:code', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'editor.html'));
 });
 
-const cleanupInterval = setInterval(() => {
+setInterval(() => {
   const now = Date.now();
   for (const [code, session] of sessions.entries()) {
     if (now - session.created > 3600000) {
