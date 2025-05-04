@@ -1,5 +1,6 @@
 let currentData = null;
 let currentCode = null;
+let selectedCommand = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     currentCode = window.location.pathname.split('/').pop();
@@ -19,52 +20,149 @@ async function loadSessionData() {
 function renderCommandTree(data) {
     const container = document.getElementById('commandTree');
     container.innerHTML = '';
-    
-    function createNode(name, data, depth = 0) {
+
+    function createNode(command, depth = 0) {
         const div = document.createElement('div');
-        div.className = 'command-node';
-        div.style.paddingLeft = depth * 15 + 'px';
-        div.textContent = name;
-        div.onclick = () => renderProperties(data);
+        div.className = `command-node ${selectedCommand === command ? 'active' : ''}`;
+        div.style.paddingLeft = depth * 20 + 'px';
+        div.innerHTML = `
+            <i class="fas fa-${command.children ? 'folder' : 'code'}"></i>
+            ${command.name}
+        `;
+
+        div.onclick = (e) => {
+            e.stopPropagation();
+            selectedCommand = command;
+            renderProperties(command);
+            document.getElementById('deleteBtn').disabled = false;
+            Array.from(container.querySelectorAll('.command-node')).forEach(n =>
+                n.classList.remove('active')
+            );
+            div.classList.add('active');
+        };
+
+        if (command.children) {
+            command.children.forEach(child =>
+                div.appendChild(createNode(child, depth + 1))
+        }
+
         return div;
     }
-    
-    for (const [key, value] of Object.entries(data)) {
-        container.appendChild(createNode(key, value, 0));
-    }
+
+    data.commands.forEach(command => {
+        container.appendChild(createNode(command));
+    });
 }
 
-function renderProperties(data) {
+function renderProperties(command) {
     const editor = document.getElementById('propertyEditor');
     editor.innerHTML = '';
-    
-    for (const [key, value] of Object.entries(data)) {
+
+    const fields = {
+        name: { type: 'text', label: 'Command Name' },
+        description: { type: 'textarea', label: 'Description' },
+        context: {
+            type: 'select',
+            label: 'Context',
+            options: ['both', 'server', 'dm']
+        },
+        ephemeral: { type: 'checkbox', label: 'Ephemeral Response' }
+    };
+
+    Object.entries(fields).forEach(([key, config]) => {
         const group = document.createElement('div');
         group.className = 'property-group';
-        
+
         const label = document.createElement('label');
         label.className = 'property-label';
-        label.textContent = key;
-        
-        const input = document.createElement('input');
-        input.className = 'property-input';
-        input.value = typeof value === 'object' ? JSON.stringify(value) : value;
-        
+        label.textContent = config.label;
+
+        let input;
+        switch(config.type) {
+            case 'textarea':
+                input = document.createElement('textarea');
+                input.className = 'property-input';
+                input.rows = 3;
+                break;
+            case 'select':
+                input = document.createElement('select');
+                input.className = 'property-input';
+                config.options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt;
+                    option.textContent = opt;
+                    input.appendChild(option);
+                });
+                break;
+            case 'checkbox':
+                input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = 'property-input';
+                break;
+            default:
+                input = document.createElement('input');
+                input.className = 'property-input';
+                input.type = config.type;
+        }
+
+        input.value = command[key] || '';
+        if (config.type === 'checkbox') {
+            input.checked = !!command[key];
+        }
+
         input.addEventListener('change', (e) => {
-            try {
-                data[key] = JSON.parse(e.target.value);
-            } catch {
-                data[key] = e.target.value;
-            }
+            command[key] = config.type === 'checkbox' ?
+                e.target.checked :
+                e.target.value;
         });
-        
+
         group.appendChild(label);
         group.appendChild(input);
         editor.appendChild(group);
+    });
+}
+
+function createNewCommand() {
+    const newCommand = {
+        name: 'new_command',
+        description: 'New command description',
+        context: 'both',
+        ephemeral: false,
+        options: [],
+        conditions: [],
+        actions: []
+    };
+
+    currentData.commands.push(newCommand);
+    renderCommandTree(currentData);
+}
+
+function deleteCommand() {
+    if (selectedCommand && confirm('Delete this command?')) {
+        const index = currentData.commands.findIndex(c => c === selectedCommand);
+        currentData.commands.splice(index, 1);
+        selectedCommand = null;
+        renderCommandTree(currentData);
+        document.getElementById('propertyEditor').innerHTML = '';
+        document.getElementById('deleteBtn').disabled = true;
     }
 }
 
-function saveChanges() {
-    const command = `/discordbmv applyedits ${currentCode}`;
-    prompt('Run this command on the server to apply changes:', command);
+async function saveChanges() {
+    try {
+        const response = await fetch(`/api/session/${currentCode}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(currentData)
+        });
+
+        if (response.ok) {
+            const command = `/discordbmv applyedits ${currentCode}`;
+            prompt('Changes saved! Run this command in-game to apply:', command);
+        } else {
+            alert('Error saving changes');
+        }
+    } catch (error) {
+        alert('Error saving changes');
+    }
 }

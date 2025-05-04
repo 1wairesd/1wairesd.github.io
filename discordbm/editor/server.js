@@ -23,10 +23,13 @@ app.post('/api/session/create', (req, res) => {
   res.sendStatus(200);
 });
 
-app.get('/api/session/:code', (req, res) => {
-  const session = sessions.get(req.params.code);
-  if (!session) return res.sendStatus(404);
-  res.json(session.data);
+app.put('/api/session/:code', (req, res) => {
+    const session = sessions.get(req.params.code);
+    if (!session) return res.sendStatus(404);
+
+    session.data = req.body;
+    session.created = Date.now();
+    res.sendStatus(200);
 });
 
 app.get('/editor/:code', (req, res) => {
