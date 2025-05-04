@@ -6,7 +6,6 @@ const sessions = new Map();
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// API Endpoints
 app.post('/api/session/create', (req, res) => {
     const { code, data } = req.body;
     sessions.set(code, {
