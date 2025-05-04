@@ -138,7 +138,12 @@ function renderProperties(command) {
     const condDiv = document.createElement('div');
     condDiv.className = 'property-group';
     condDiv.innerHTML = `
-      <label>Condition ${idx + 1}</label>
+      <div class="option-header">
+        <label>Condition ${idx + 1}</label>
+        <button onclick="removeCondition(${idx})" class="btn small danger">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
       <select class="property-input" onchange="updateCondition('type', ${idx}, this.value)">
         ${['permission','role','time']
           .map(t => `<option value="${t}"${cond.type===t?' selected':''}>${t}</option>`).join('')}
@@ -164,6 +169,12 @@ function renderProperties(command) {
     const actionCard = document.createElement('div');
     actionCard.className = 'action-card';
     actionCard.innerHTML = `
+      <div class="option-header">
+        <label>Action ${idx + 1}</label>
+        <button onclick="removeAction(${idx})" class="btn small danger">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
       <select class="action-type" onchange="updateAction('type', ${idx}, this.value)">
         <option value="send_message"${act.type==='send_message'?' selected':''}>Send Message</option>
         <option value="button"${act.type==='button'?' selected':''}>Button</option>
@@ -197,6 +208,18 @@ function addNewCondition() {
   if (!selectedCommand) return;
   selectedCommand.conditions = selectedCommand.conditions||[];
   selectedCommand.conditions.push({ type: 'permission', role_id: '' });
+  renderProperties(selectedCommand);
+}
+
+function removeCondition(index) {
+  if (!selectedCommand?.conditions) return;
+  selectedCommand.conditions.splice(index, 1);
+  renderProperties(selectedCommand);
+}
+
+function removeAction(index) {
+  if (!selectedCommand?.actions) return;
+  selectedCommand.actions.splice(index, 1);
   renderProperties(selectedCommand);
 }
 
