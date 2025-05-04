@@ -7,6 +7,12 @@ const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/editor.html');
 });
@@ -26,6 +32,15 @@ app.get('/api/session/:code', (req, res) => {
 app.get('/editor/:code', (req, res) => {
   res.sendFile(__dirname + '/public/editor.html');
 });
+
+const cleanupInterval = setInterval(() => {
+  const now = Date.now();
+  for (const [code, session] of sessions.entries()) {
+    if (now - session.created > 3600000) { // 1 час
+      sessions.delete(code);
+    }
+  }
+}, 60000);
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
