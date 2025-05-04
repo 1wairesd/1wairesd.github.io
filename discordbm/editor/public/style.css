@@ -138,3 +138,26 @@ body {
     border-top: 1px solid rgba(255,255,255,0.1);
     text-align: right;
 }
+
+.option-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.btn.small {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.btn.small i {
+    margin-right: 4px;
+}

@@ -3,195 +3,166 @@ let currentCode = null;
 let selectedCommand = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    currentCode = window.location.pathname.split('/').pop();
-    loadSessionData();
+  currentCode = window.location.pathname.split('/').pop();
+  loadSessionData();
 });
 
 async function loadSessionData() {
-    try {
-        const response = await fetch(`/api/session/${currentCode}`);
-        currentData = await response.json();
-        renderCommandTree(currentData);
-    } catch {
-        alert('Error loading session');
-    }
+  try {
+    const response = await fetch(`/api/session/${currentCode}`);
+    currentData = await response.json();
+    renderCommandTree(currentData);
+  } catch {
+    alert('Error loading session');
+  }
 }
 
 function renderCommandTree(data) {
-    const container = document.getElementById('commandTree');
-    container.innerHTML = '';
+  const container = document.getElementById('commandTree');
+  container.innerHTML = '';
 
-    function createNode(command, depth = 0) {
-        const div = document.createElement('div');
-        div.className = `command-node ${selectedCommand === command ? 'active' : ''}`;
-        div.style.paddingLeft = depth * 20 + 'px';
-        div.innerHTML = `<i class="fas fa-${command.children ? 'folder' : 'code'}"></i>${command.name}`;
+  function createNode(command, depth = 0) {
+    const div = document.createElement('div');
+    div.className = `command-node ${selectedCommand === command ? 'active' : ''}`;
+    div.style.paddingLeft = depth * 20 + 'px';
+    div.innerHTML = `<i class="fas fa-${command.children ? 'folder' : 'code'}"></i>${command.name}`;
 
-        div.onclick = (e) => {
-            e.stopPropagation();
-            selectedCommand = command;
-            renderProperties(command);
-            document.getElementById('deleteBtn').disabled = false;
-            Array.from(container.querySelectorAll('.command-node')).forEach(n =>
-                n.classList.remove('active')
-            );
-            div.classList.add('active');
-        };
+    div.onclick = e => {
+      e.stopPropagation();
+      selectedCommand = command;
+      renderProperties(command);
+      document.getElementById('deleteBtn').disabled = false;
+      container.querySelectorAll('.command-node').forEach(n => n.classList.remove('active'));
+      div.classList.add('active');
+    };
 
-        if (command.children) {
-            command.children.forEach(child =>
-                div.appendChild(createNode(child, depth + 1))
-            );
-        }
-
-        return div;
+    if (command.children) {
+      command.children.forEach(child => div.appendChild(createNode(child, depth + 1)));
     }
 
-    data.commands.forEach(command => {
-        container.appendChild(createNode(command));
-    });
+    return div;
+  }
+
+  data.commands.forEach(cmd => container.appendChild(createNode(cmd)));
 }
 
 function renderProperties(command) {
-    const editor = document.getElementById('propertyEditor');
-    editor.innerHTML = '';
+  const editor = document.getElementById('propertyEditor');
+  editor.innerHTML = '';
 
-    const fields = {
-        name: { type: 'text', label: 'Command Name' },
-        description: { type: 'textarea', label: 'Description' },
-        context: {
-            type: 'select',
-            label: 'Context',
-            options: ['both', 'server', 'dm']
-        },
-        ephemeral: { type: 'checkbox', label: 'Ephemeral Response' }
+  const fields = {
+    name: { type: 'text', label: 'Command Name' },
+    description: { type: 'textarea', label: 'Description' },
+    context: { type: 'select', label: 'Context', options: ['both', 'server', 'dm'] },
+    ephemeral: { type: 'checkbox', label: 'Ephemeral Response' }
+  };
+
+  Object.entries(fields).forEach(([key, cfg]) => {
+    const group = document.createElement('div');
+    group.className = 'property-group';
+
+    const label = document.createElement('label');
+    label.className = 'property-label';
+    label.textContent = cfg.label;
+
+    let input;
+    if (cfg.type === 'textarea') {
+      input = document.createElement('textarea'); input.rows = 3;
+    } else if (cfg.type === 'select') {
+      input = document.createElement('select');
+      cfg.options.forEach(opt => {
+        const optEl = document.createElement('option'); optEl.value = opt; optEl.textContent = opt;
+        input.appendChild(optEl);
+      });
+    } else {
+      input = document.createElement('input'); input.type = cfg.type;
+    }
+    input.className = 'property-input';
+    if (cfg.type === 'checkbox') input.checked = !!command[key];
+    else input.value = command[key] || '';
+
+    input.onchange = e => {
+      command[key] = cfg.type === 'checkbox' ? e.target.checked : e.target.value;
     };
 
-    Object.entries(fields).forEach(([key, config]) => {
-        const group = document.createElement('div');
-        group.className = 'property-group';
+    group.append(label, input);
+    editor.appendChild(group);
+  });
 
-        const label = document.createElement('label');
-        label.className = 'property-label';
-        label.textContent = config.label;
+  const optionsHeader = document.createElement('div');
+  optionsHeader.className = 'property-group';
+  optionsHeader.innerHTML = `
+    <h3>Command Options
+      <button onclick="addNewOption()" class="btn small">
+        <i class="fas fa-plus"></i>
+      </button>
+    </h3>`;
+  editor.appendChild(optionsHeader);
 
-        let input;
-        switch (config.type) {
-            case 'textarea':
-                input = document.createElement('textarea');
-                input.className = 'property-input';
-                input.rows = 3;
-                break;
-            case 'select':
-                input = document.createElement('select');
-                input.className = 'property-input';
-                config.options.forEach(opt => {
-                    const option = document.createElement('option');
-                    option.value = opt;
-                    option.textContent = opt;
-                    input.appendChild(option);
-                });
-                break;
-            case 'checkbox':
-                input = document.createElement('input');
-                input.type = 'checkbox';
-                input.className = 'property-input';
-                break;
-            default:
-                input = document.createElement('input');
-                input.type = config.type;
-                input.className = 'property-input';
-        }
+  (command.options || []).forEach((opt, idx) => {
+    const optDiv = document.createElement('div');
+    optDiv.className = 'property-group';
+    optDiv.innerHTML = `
+      <div class="option-header">
+        <label>Option ${idx + 1}</label>
+        <button onclick="removeOption(${idx})" class="btn small danger">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+      <input type="text" class="property-input" placeholder="Name" value="${opt.name}" onchange="updateOption('name', ${idx}, this.value)">
+      <select class="property-input" onchange="updateOption('type', ${idx}, this.value)">
+        ${['STRING','INTEGER','BOOLEAN','USER','CHANNEL']
+          .map(t => `<option value="${t}"${opt.type===t?' selected':''}>${t}</option>`) .join('')}
+      </select>
+      <textarea class="property-input" placeholder="Description" onchange="updateOption('description', ${idx}, this.value)">${opt.description||''}</textarea>
+      <label class="checkbox"><input type="checkbox"${opt.required?' checked':''} onchange="updateOption('required', ${idx}, this.checked)"> Required</label>
+    `;
+    editor.appendChild(optDiv);
+  });
+}
 
-        if (config.type === 'checkbox') {
-            input.checked = !!command[key];
-        } else {
-            input.value = command[key] || '';
-        }
+function addNewOption() {
+  if (!selectedCommand) return;
+  selectedCommand.options = selectedCommand.options||[];
+  selectedCommand.options.push({ name: 'new_option', type: 'STRING', description: '', required: false });
+  renderProperties(selectedCommand);
+}
 
-        input.addEventListener('change', (e) => {
-            command[key] = config.type === 'checkbox' ? e.target.checked : e.target.value;
-        });
-
-        group.appendChild(label);
-        group.appendChild(input);
-        editor.appendChild(group);
-    });
-
-    const optionsGroup = document.createElement('div');
-    optionsGroup.className = 'property-group';
-    optionsGroup.innerHTML = `<h3>Command Options</h3>`;
-    editor.appendChild(optionsGroup);
-
-    command.options.forEach((option, index) => {
-        const optionDiv = document.createElement('div');
-        optionDiv.className = 'property-group';
-        optionDiv.innerHTML = `
-            <label>Option ${index + 1}</label>
-            <input
-                type="text"
-                value="${option.name}"
-                class="property-input"
-                onchange="updateOption('name', ${index}, this.value)"
-            >
-            <select
-                class="property-input"
-                onchange="updateOption('type', ${index}, this.value)"
-            >
-                ${['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL']
-                  .map(t => `<option value="${t}" ${option.type === t ? 'selected' : ''}>${t}</option>`)
-                  .join('')}
-            </select>
-        `;
-        editor.appendChild(optionDiv);
-    });
+function removeOption(index) {
+  if (!selectedCommand?.options) return;
+  selectedCommand.options.splice(index,1);
+  renderProperties(selectedCommand);
 }
 
 function updateOption(field, index, value) {
-    if (!selectedCommand.options) return;
-    selectedCommand.options[index][field] = value;
-    renderCommandTree({ commands: currentData.commands });
+  if (!selectedCommand?.options) return;
+  selectedCommand.options[index][field] = value;
+  renderCommandTree({ commands: currentData.commands });
 }
 
 function createNewCommand() {
-    const newCommand = {
-        name: 'new_command',
-        description: 'New command description',
-        context: 'both',
-        ephemeral: false,
-        options: [],
-        conditions: [],
-        actions: []
-    };
-    currentData.commands.push(newCommand);
-    renderCommandTree(currentData);
+  currentData.commands.push({ name: 'new_command', description: '', context: 'both', ephemeral: false, options: [], conditions: [], actions: [] });
+  renderCommandTree(currentData);
 }
 
 function deleteCommand() {
-    if (selectedCommand && confirm('Delete this command?')) {
-        const index = currentData.commands.findIndex(c => c === selectedCommand);
-        currentData.commands.splice(index, 1);
-        selectedCommand = null;
-        renderCommandTree(currentData);
-        document.getElementById('propertyEditor').innerHTML = '';
-        document.getElementById('deleteBtn').disabled = true;
-    }
+  if (selectedCommand && confirm('Delete this command?')) {
+    const i = currentData.commands.indexOf(selectedCommand);
+    if (i>=0) currentData.commands.splice(i,1);
+    selectedCommand = null;
+    document.getElementById('deleteBtn').disabled = true;
+    document.getElementById('propertyEditor').innerHTML = '';
+    renderCommandTree(currentData);
+  }
 }
 
 async function saveChanges() {
-    try {
-        const response = await fetch(`/api/session/${currentCode}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(currentData)
-        });
-        if (response.ok) {
-            const command = `/discordbmv applyedits ${currentCode}`;
-            prompt('Changes saved! Run this command in-game to apply:', command);
-        } else {
-            alert('Error saving changes');
-        }
-    } catch {
-        alert('Error saving changes');
-    }
+  try {
+    const resp = await fetch(`/api/session/${currentCode}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(currentData) });
+    if (resp.ok) {
+      prompt('Changes saved! Run this command in-game:', `/discordbmv applyedits ${currentCode}`);
+    } else alert('Error saving changes');
+  } catch {
+    alert('Error saving changes');
+  }
 }
