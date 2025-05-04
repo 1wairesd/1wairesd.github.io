@@ -3,6 +3,8 @@ const bodyParser = require('body-parser');
 const app = express();
 const sessions = new Map();
 
+const port = process.env.PORT || 3000;
+
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
@@ -17,15 +19,14 @@ app.post('/api/session/create', (req, res) => {
 
 app.get('/api/session/:code', (req, res) => {
     const session = sessions.get(req.params.code);
-    if(!session) return res.sendStatus(404);
+    if (!session) return res.sendStatus(404);
     res.json(session.data);
 });
 
-// Editor Interface
 app.get('/editor/:code', (req, res) => {
     res.sendFile(__dirname + '/public/editor.html');
 });
 
-app.listen(3000, () => {
-    console.log('Server running on port 3000');
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on port ${port}`);
 });
