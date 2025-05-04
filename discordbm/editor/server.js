@@ -1,11 +1,9 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const path = require('path');
 const app = express();
 const sessions = new Map();
 const port = process.env.PORT || 3000;
-
-app.use(bodyParser.json());
-app.use(express.static('public'));
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -13,8 +11,12 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(bodyParser.json());
+
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/editor.html');
+  res.sendFile(path.join(__dirname, 'public', 'editor.html'));
 });
 
 app.post('/api/session/create', (req, res) => {
@@ -24,16 +26,16 @@ app.post('/api/session/create', (req, res) => {
 });
 
 app.put('/api/session/:code', (req, res) => {
-    const session = sessions.get(req.params.code);
-    if (!session) return res.sendStatus(404);
+  const session = sessions.get(req.params.code);
+  if (!session) return res.sendStatus(404);
 
-    session.data = req.body;
-    session.created = Date.now();
-    res.sendStatus(200);
+  session.data = req.body;
+  session.created = Date.now();
+  res.sendStatus(200);
 });
 
 app.get('/editor/:code', (req, res) => {
-  res.sendFile(__dirname + '/public/editor.html');
+  res.sendFile(path.join(__dirname, 'public', 'editor.html'));
 });
 
 const cleanupInterval = setInterval(() => {
