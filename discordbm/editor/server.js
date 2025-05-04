@@ -2,22 +2,18 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
 const sessions = new Map();
-
 const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+  res.sendFile(__dirname + '/public/editor.html');
 });
 
 app.post('/api/session/create', (req, res) => {
   const { code, data } = req.body;
-  sessions.set(code, {
-    data: data,
-    created: Date.now()
-  });
+  sessions.set(code, { data, created: Date.now() });
   res.sendStatus(200);
 });
 
