@@ -8,25 +8,29 @@ const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
+
 app.post('/api/session/create', (req, res) => {
-    const { code, data } = req.body;
-    sessions.set(code, {
-        data: req.body.data,
-        created: Date.now()
-    });
-    res.sendStatus(200);
+  const { code, data } = req.body;
+  sessions.set(code, {
+    data: data,
+    created: Date.now()
+  });
+  res.sendStatus(200);
 });
 
 app.get('/api/session/:code', (req, res) => {
-    const session = sessions.get(req.params.code);
-    if (!session) return res.sendStatus(404);
-    res.json(session.data);
+  const session = sessions.get(req.params.code);
+  if (!session) return res.sendStatus(404);
+  res.json(session.data);
 });
 
 app.get('/editor/:code', (req, res) => {
-    res.sendFile(__dirname + '/public/editor.html');
+  res.sendFile(__dirname + '/public/editor.html');
 });
 
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
