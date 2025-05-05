@@ -1,282 +1,225 @@
+// Refactored Command Editor
+
+const FIELD_DEFS = [
+  { key: 'name',        type: 'text',     label: 'Command Name' },
+  { key: 'description', type: 'textarea', label: 'Description' },
+  { key: 'context',     type: 'select',   label: 'Context', options: ['both','server','dm'] },
+  { key: 'ephemeral',   type: 'checkbox', label: 'Ephemeral Response' }
+];
+
+const LIST_DEFS = [
+  {
+    key: 'options',
+    title: 'Command Options',
+    template: (opt, idx) => `
+      <div class="item-header">
+        <span>Option ${idx + 1}</span>
+        <button data-action="remove" data-list="options" data-index="${idx}">✕</button>
+      </div>
+      <input data-field="name" placeholder="Name" value="${opt.name}" />
+      <select data-field="type">
+        ${['STRING','INTEGER','BOOLEAN','USER','CHANNEL']
+          .map(t => `<option value="${t}"${opt.type===t?' selected':''}>${t}</option>`).join('')}
+      </select>
+      <textarea data-field="description" placeholder="Description">${opt.description}</textarea>
+      <label><input type="checkbox" data-field="required" ${opt.required?'checked':''}/> Required</label>
+    `
+  },
+  {
+    key: 'conditions',
+    title: 'Conditions',
+    template: (cond, idx) => `
+      <div class="item-header">
+        <span>Condition ${idx + 1}</span>
+        <button data-action="remove" data-list="conditions" data-index="${idx}">✕</button>
+      </div>
+      <select data-field="type">
+        ${['permission','role','time']
+          .map(t => `<option value="${t}"${cond.type===t?' selected':''}>${t}</option>`).join('')}
+      </select>
+      <input data-field="value" placeholder="Value" value="${cond.value||cond.role_id||''}" />
+    `
+  },
+  {
+    key: 'actions',
+    title: 'Actions',
+    template: (act, idx) => `
+      <div class="item-header">
+        <span>Action ${idx + 1}</span>
+        <button data-action="remove" data-list="actions" data-index="${idx}">✕</button>
+      </div>
+      <select data-field="type">
+        <option value="send_message"${act.type==='send_message'?' selected':''}>Send Message</option>
+        <option value="button"${act.type==='button'?' selected':''}>Button</option>
+      </select>
+      <input data-field="message" placeholder="Content" value="${act.message||act.content||''}" />
+    `
+  }
+];
+
 let currentData = null;
 let currentCode = null;
 let selectedCommand = null;
 
-document.addEventListener('DOMContentLoaded', () => {
+// Entry point
+window.addEventListener('DOMContentLoaded', () => {
   currentCode = window.location.pathname.split('/').pop();
   loadSessionData();
+  setupGlobalListeners();
 });
 
+// Load session
 async function loadSessionData() {
   try {
     const response = await fetch(`/api/session/${currentCode}`);
     currentData = await response.json();
-    renderCommandTree(currentData);
+    renderCommandTree();
   } catch {
     alert('Error loading session');
   }
 }
 
-function renderCommandTree(data) {
+// Render command tree
+function renderCommandTree() {
   const container = document.getElementById('commandTree');
   container.innerHTML = '';
-
-  function createNode(command, depth = 0) {
-    const div = document.createElement('div');
-    div.className = `command-node ${selectedCommand === command ? 'active' : ''}`;
-    div.style.paddingLeft = depth * 20 + 'px';
-    div.innerHTML = `<i class="fas fa-${command.children ? 'folder' : 'code'}"></i>${command.name}`;
-
-    div.onclick = e => {
-      e.stopPropagation();
-      selectedCommand = command;
-      renderProperties(command);
-      document.getElementById('deleteBtn').disabled = false;
-      container.querySelectorAll('.command-node').forEach(n => n.classList.remove('active'));
-      div.classList.add('active');
-    };
-
-    if (command.children) {
-      command.children.forEach(child => div.appendChild(createNode(child, depth + 1)));
-    }
-
-    return div;
-  }
-
-  data.commands.forEach(cmd => container.appendChild(createNode(cmd)));
+  currentData.commands.forEach(cmd => container.appendChild(createNode(cmd, 0)));
 }
 
-function renderProperties(command) {
+function createNode(command, depth) {
+  const div = document.createElement('div');
+  div.className = `command-node ${selectedCommand === command ? 'active' : ''}`;
+  div.style.paddingLeft = depth * 20 + 'px';
+  div.innerHTML = `<i class="fas fa-${command.children?'folder':'code'}"></i> ${command.name}`;
+  div.addEventListener('click', e => {
+    e.stopPropagation();
+    selectedCommand = command;
+    renderProperties();
+    document.getElementById('deleteBtn').disabled = false;
+    container.querySelectorAll('.command-node').forEach(n => n.classList.remove('active'));
+    div.classList.add('active');
+  });
+  if (command.children) command.children.forEach(c => div.appendChild(createNode(c, depth + 1)));
+  return div;
+}
+
+// Render properties and list sections
+function renderProperties() {
   const editor = document.getElementById('propertyEditor');
   editor.innerHTML = '';
 
-  const fields = {
-    name: { type: 'text', label: 'Command Name' },
-    description: { type: 'textarea', label: 'Description' },
-    context: { type: 'select', label: 'Context', options: ['both', 'server', 'dm'] },
-    ephemeral: { type: 'checkbox', label: 'Ephemeral Response' }
-  };
-
-  Object.entries(fields).forEach(([key, cfg]) => {
-    const group = document.createElement('div');
-    group.className = 'property-group';
-
-    const label = document.createElement('label');
-    label.className = 'property-label';
-    label.textContent = cfg.label;
-
+  // Basic fields
+  FIELD_DEFS.forEach(def => {
+    const group = document.createElement('div'); group.className = 'property-group';
+    const label = document.createElement('label'); label.textContent = def.label;
     let input;
-    if (cfg.type === 'textarea') {
-      input = document.createElement('textarea');
-      input.rows = 3;
-    } else if (cfg.type === 'select') {
+
+    if (def.type === 'textarea') {
+      input = document.createElement('textarea'); input.rows = 3;
+      input.value = selectedCommand[def.key] || '';
+    } else if (def.type === 'select') {
       input = document.createElement('select');
-      cfg.options.forEach(opt => {
-        const optEl = document.createElement('option');
-        optEl.value = opt;
-        optEl.textContent = opt;
-        input.appendChild(optEl);
+      def.options.forEach(opt => {
+        const optEl = new Option(opt, opt, selectedCommand[def.key]===opt, selectedCommand[def.key]===opt);
+        input.add(optEl);
       });
     } else {
-      input = document.createElement('input');
-      input.type = cfg.type;
+      input = document.createElement('input'); input.type = def.type;
+      if (def.type === 'checkbox') input.checked = !!selectedCommand[def.key];
+      else input.value = selectedCommand[def.key] || '';
     }
-    input.className = 'property-input';
-    if (cfg.type === 'checkbox') input.checked = !!command[key];
-    else input.value = command[key] || '';
 
-    input.onchange = e => {
-      command[key] = cfg.type === 'checkbox' ? e.target.checked : e.target.value;
-    };
-
+    input.dataset.key = def.key;
     group.append(label, input);
-    editor.appendChild(group);
+    editor.append(group);
   });
 
-  const optionsHeader = document.createElement('div');
-  optionsHeader.className = 'property-group';
-  optionsHeader.innerHTML = `
-    <h3>Command Options
-      <button onclick="addNewOption()" class="btn small">
-        <i class="fas fa-plus"></i>
-      </button>
-    </h3>`;
-  editor.appendChild(optionsHeader);
+  // List sections
+  LIST_DEFS.forEach(listDef => {
+    const section = document.createElement('div'); section.className = 'list-section';
+    const header = document.createElement('h3'); header.textContent = listDef.title;
+    const addBtn = document.createElement('button'); addBtn.textContent = '+';
+    addBtn.dataset.action = 'add'; addBtn.dataset.list = listDef.key;
+    header.append(addBtn);
+    section.append(header);
 
-  (command.options || []).forEach((opt, idx) => {
-    const optDiv = document.createElement('div');
-    optDiv.className = 'property-group';
-    optDiv.innerHTML = `
-      <div class="option-header">
-        <label>Option ${idx + 1}</label>
-        <button onclick="removeOption(${idx})" class="btn small danger">
-          <i class="fas fa-trash"></i>
-        </button>
-      </div>
-      <input type="text" class="property-input" placeholder="Name" value="${opt.name}" onchange="updateOption('name', ${idx}, this.value)">
-      <select class="property-input" onchange="updateOption('type', ${idx}, this.value)">
-        ${['STRING','INTEGER','BOOLEAN','USER','CHANNEL']
-          .map(t => `<option value="${t}"${opt.type===t?' selected':''}>${t}</option>`).join('')}
-      </select>
-      <textarea class="property-input" placeholder="Description" onchange="updateOption('description', ${idx}, this.value)">${opt.description||''}</textarea>
-      <label class="checkbox"><input type="checkbox"${opt.required?' checked':''} onchange="updateOption('required', ${idx}, this.checked)"> Required</label>
-    `;
-    editor.appendChild(optDiv);
-  });
+    const items = selectedCommand[listDef.key] || (selectedCommand[listDef.key] = []);
+    items.forEach((item, idx) => {
+      const itemDiv = document.createElement('div'); itemDiv.className = 'list-item';
+      itemDiv.dataset.list = listDef.key;
+      itemDiv.dataset.index = idx;
+      itemDiv.innerHTML = listDef.template(item, idx);
+      section.append(itemDiv);
+    });
 
-  const conditionsGroup = document.createElement('div');
-  conditionsGroup.className = 'property-group';
-  conditionsGroup.innerHTML = `
-    <h3>Conditions
-      <button onclick="addNewCondition()" class="btn small">
-        <i class="fas fa-plus"></i>
-      </button>
-    </h3>`;
-  editor.appendChild(conditionsGroup);
-
-  (command.conditions || []).forEach((cond, idx) => {
-    const condDiv = document.createElement('div');
-    condDiv.className = 'property-group';
-    condDiv.innerHTML = `
-      <div class="option-header">
-        <label>Condition ${idx + 1}</label>
-        <button onclick="removeCondition(${idx})" class="btn small danger">
-          <i class="fas fa-trash"></i>
-        </button>
-      </div>
-      <select class="property-input" onchange="updateCondition('type', ${idx}, this.value)">
-        ${['permission','role','time']
-          .map(t => `<option value="${t}"${cond.type===t?' selected':''}>${t}</option>`).join('')}
-      </select>
-      <input type="text" class="property-input" placeholder="Value" value="${cond.role_id||cond.value||''}" onchange="updateCondition('value', ${idx}, this.value)">
-    `;
-    editor.appendChild(condDiv);
-  });
-
-  const actionsGroup = document.createElement('div');
-  actionsGroup.className = 'property-group';
-  actionsGroup.innerHTML = `
-    <h3>Actions
-      <button onclick="addNewAction()" class="btn small">
-        <i class="fas fa-plus"></i>
-      </button>
-    </h3>
-    <div class="actions-list"></div>`;
-  editor.appendChild(actionsGroup);
-
-  const actionsList = editor.querySelector('.actions-list');
-  (command.actions || []).forEach((act, idx) => {
-    const actionCard = document.createElement('div');
-    actionCard.className = 'action-card';
-    actionCard.innerHTML = `
-      <div class="option-header">
-        <label>Action ${idx + 1}</label>
-        <button onclick="removeAction(${idx})" class="btn small danger">
-          <i class="fas fa-trash"></i>
-        </button>
-      </div>
-      <select class="action-type" onchange="updateAction('type', ${idx}, this.value)">
-        <option value="send_message"${act.type==='send_message'?' selected':''}>Send Message</option>
-        <option value="button"${act.type==='button'?' selected':''}>Button</option>
-      </select>
-      <input type="text" placeholder="Content" value="${act.message||act.content||''}" onchange="updateAction('message', ${idx}, this.value)">
-    `;
-    actionsList.appendChild(actionCard);
+    editor.append(section);
   });
 }
 
-function addNewOption() {
-  if (!selectedCommand) return;
-  selectedCommand.options = selectedCommand.options||[];
-  selectedCommand.options.push({ name: 'new_option', type: 'STRING', description: '', required: false });
-  renderProperties(selectedCommand);
-}
+// Delegated event listeners
+function setupGlobalListeners() {
+  const editor = document.getElementById('propertyEditor');
 
-function removeOption(index) {
-  if (!selectedCommand?.options) return;
-  selectedCommand.options.splice(index,1);
-  renderProperties(selectedCommand);
-}
+  editor.addEventListener('change', e => {
+    const tgt = e.target;
+    const listKey = tgt.closest('.list-item')?.dataset.list;
+    const idx     = tgt.closest('.list-item')?.dataset.index;
+    const field   = tgt.dataset.field || tgt.dataset.key;
 
-function updateOption(field, index, value) {
-  if (!selectedCommand?.options) return;
-  selectedCommand.options[index][field] = value;
-  renderCommandTree({ commands: currentData.commands });
-}
+    if (tgt.dataset.key) {
+      selectedCommand[field] = tgt.type === 'checkbox' ? tgt.checked : tgt.value;
+    } else if (listKey != null) {
+      const arr = selectedCommand[listKey];
+      const item = arr[idx];
+      item[field] = tgt.type === 'checkbox' ? tgt.checked : tgt.value;
+    }
+    renderCommandTree();
+  });
 
-function addNewCondition() {
-  if (!selectedCommand) return;
-  selectedCommand.conditions = selectedCommand.conditions||[];
-  selectedCommand.conditions.push({ type: 'permission', role_id: '' });
-  renderProperties(selectedCommand);
-}
+  editor.addEventListener('click', e => {
+    const tgt    = e.target;
+    const action = tgt.dataset.action;
+    const list   = tgt.dataset.list;
+    const idx    = tgt.dataset.index;
+    if (!action || !list) return;
 
-function removeCondition(index) {
-  if (!selectedCommand?.conditions) return;
-  selectedCommand.conditions.splice(index, 1);
-  renderProperties(selectedCommand);
-}
+    if (action === 'add') {
+      let tpl;
+      if (list === 'options') tpl = { name: '', type: 'STRING', description: '', required: false };
+      if (list === 'conditions') tpl = { type: 'permission', value: '' };
+      if (list === 'actions') tpl = { type: 'send_message', message: '' };
+      selectedCommand[list].push(tpl);
+    } else if (action === 'remove') {
+      selectedCommand[list].splice(idx, 1);
+    }
+    renderProperties();
+  });
 
-function removeAction(index) {
-  if (!selectedCommand?.actions) return;
-  selectedCommand.actions.splice(index, 1);
-  renderProperties(selectedCommand);
-}
+  document.getElementById('createBtn').addEventListener('click', () => {
+    currentData.commands.push({
+      name: 'new_command', description: '', context: 'both', ephemeral: false,
+      options: [], conditions: [], actions: []
+    });
+    renderCommandTree();
+  });
 
-function updateCondition(field, index, value) {
-  if (!selectedCommand?.conditions) return;
-  if (field === 'value') {
-    selectedCommand.conditions[index].role_id = value;
-  } else {
-    selectedCommand.conditions[index].type = value;
-  }
-  renderCommandTree({ commands: currentData.commands });
-}
-
-function addNewAction() {
-  if (!selectedCommand) return;
-  selectedCommand.actions = selectedCommand.actions||[];
-  selectedCommand.actions.push({ type: 'send_message', message: 'New message' });
-  renderProperties(selectedCommand);
-}
-
-function updateAction(field, index, value) {
-  if (!selectedCommand?.actions) return;
-  if (field === 'type') {
-    selectedCommand.actions[index].type = value;
-  } else {
-    selectedCommand.actions[index].message = value;
-  }
-  renderCommandTree({ commands: currentData.commands });
-}
-
-function createNewCommand() {
-  currentData.commands.push({ name: 'new_command', description: '', context: 'both', ephemeral: false, options: [], conditions: [], actions: [] });
-  renderCommandTree(currentData);
-}
-
-function deleteCommand() {
-  if (selectedCommand && confirm('Delete this command?')) {
-    const i = currentData.commands.indexOf(selectedCommand);
-    if (i >= 0) currentData.commands.splice(i,1);
+  document.getElementById('deleteBtn').addEventListener('click', () => {
+    if (!selectedCommand) return;
+    currentData.commands = currentData.commands.filter(c => c !== selectedCommand);
     selectedCommand = null;
+    renderCommandTree();
     document.getElementById('deleteBtn').disabled = true;
     document.getElementById('propertyEditor').innerHTML = '';
-    renderCommandTree(currentData);
-  }
-}
+  });
 
-async function saveChanges() {
-  try {
-    const resp = await fetch(`/api/session/${currentCode}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(currentData)
-    });
-    if (resp.ok) {
-      prompt('Changes saved! Run this command in-game:', `/discordbmv applyedits ${currentCode}`);
-    } else alert('Error saving changes');
-  } catch {
-    alert('Error saving changes');
-  }
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    try {
+      const resp = await fetch(`/api/session/${currentCode}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(currentData)
+      });
+      if (resp.ok) alert('Changes saved!'); else alert('Error saving changes');
+    } catch {
+      alert('Error saving changes');
+    }
+  });
 }
