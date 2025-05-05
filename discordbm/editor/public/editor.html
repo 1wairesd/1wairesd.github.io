@@ -12,7 +12,7 @@
 <div class="container">
     <div class="sidebar">
         <div class="toolbar">
-            <button class="btn primary" onclick="createNewCommand()">
+            <button class="btn primary" id="createBtn">
                 <i class="fas fa-plus"></i> New Command
             </button>
         </div>
@@ -21,16 +21,15 @@
     <div class="editor">
         <div class="editor-header">
             <h1>Command Editor</h1>
-            <div class="session-code">Session: #{currentCode}</div>
         </div>
         <div class="editor-toolbar">
-            <button class="btn danger" onclick="deleteCommand()" id="deleteBtn" disabled>
+            <button class="btn danger" id="deleteBtn" disabled>
                 <i class="fas fa-trash"></i> Delete
             </button>
         </div>
         <div id="propertyEditor" class="scrollable"></div>
         <div class="editor-footer">
-            <button onclick="saveChanges()" class="btn success">
+            <button id="saveBtn" class="btn success">
                 <i class="fas fa-save"></i> Save Changes
             </button>
         </div>

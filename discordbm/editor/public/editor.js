@@ -1,5 +1,3 @@
-// Refactored Command Editor with Minimalist Volumetric Dark Theme
-
 // Inject dark theme styles
 const style = document.createElement('style');
 style.textContent = `
@@ -75,26 +73,24 @@ const LIST_DEFS = [
 ];
 
 let currentData = null;
-let currentCode = null;
 let selectedCommand = null;
 
 // Entry point
 window.addEventListener('DOMContentLoaded', () => {
-  currentCode = window.location.pathname.split('/').pop();
-  loadSessionData();
+  const hash = window.location.hash.slice(1);
+  if (hash) {
+    try {
+      const json = atob(hash);
+      currentData = JSON.parse(json);
+      renderCommandTree();
+    } catch (e) {
+      alert('Invalid data in URL');
+    }
+  } else {
+    alert('No data provided');
+  }
   setupGlobalListeners();
 });
-
-// Load session data
-async function loadSessionData() {
-  try {
-    const response = await fetch(`/api/session/${currentCode}`);
-    currentData = await response.json();
-    renderCommandTree();
-  } catch {
-    alert('Error loading session');
-  }
-}
 
 // Render command tree in sidebar
 function renderCommandTree() {
@@ -248,17 +244,15 @@ function setupGlobalListeners() {
     document.getElementById('propertyEditor').innerHTML = '';
   });
 
-  // Save changes to server
-  document.getElementById('saveBtn').addEventListener('click', async () => {
+  // Save changes and generate apply command
+  document.getElementById('saveBtn').addEventListener('click', () => {
     try {
-      const resp = await fetch(`/api/session/${currentCode}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentData)
-      });
-      alert(resp.ok ? 'Changes saved!' : 'Error saving changes');
-    } catch {
-      alert('Error saving changes');
+      const json = JSON.stringify(currentData);
+      const base64 = btoa(json);
+      const applyCommand = `/discordBMV applyedits ${base64}`;
+      prompt('Copy this command and run it in Minecraft:', applyCommand);
+    } catch (e) {
+      alert('Error generating apply command');
     }
   });
 }
